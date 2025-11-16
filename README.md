@@ -56,6 +56,7 @@ Variables relevantes:
 - `scripts/batch_analysis.py` (usado desde el dashboard) imprime la tabla de ranking e interpretación automática.
 - `scripts/batch_equity_ranking.py` genera el ranking multiactivo para acciones y calcula sentimiento con FinBERT (el dashboard lo llama cuando eliges la familia equity).
 - `scripts/train_price_model.py` admite `--n-estimators`, `--max-depth` y `--walk-splits` para ajustar modelos y obtener métricas walk-forward (especialmente útil en equities).
+- `pytest`: ejecuta `python -m pytest` para validar los módulos (tests enfocados en features y ranking de equities).
 
 > Si prefieres ejecutar sin Docker, instala `pip install -r requirements.txt` y usa los scripts directamente. Aun así, las instrucciones oficiales están pensadas para correr en contenedores.
 
