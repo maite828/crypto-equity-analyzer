@@ -1,0 +1,31 @@
+app:
+  domain: "equity"
+  default_symbol: "NVDA"
+  default_texts:
+    - "NVIDIA lidera el mercado de GPUs para IA."
+    - "El mercado sigue la guidance de ingresos en centros de datos."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "ProsusAI/finbert"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "NVDA"
+  market_symbol: "NVDA"
+  interval: "1h"
+  asset_family: "equity"
+  model_path: "../models/local_price_NVDA_equity_1h.joblib"
+  source: "local"
+  benchmark_symbol: "^GSPC"
+  lookback_days: 120
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

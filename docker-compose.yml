@@ -1,0 +1,37 @@
+services:
+  analyzer:
+    build: .
+    image: cryptopredicction:latest
+    environment:
+      LOG_LEVEL: "INFO"
+      # TEXTS: "Un titular||Otro titular"
+      # SYMBOL: "ETH-USD"
+      # HF_TOKEN: "hf_xxx" # Sólo si el repo de Hugging Face es privado
+    volumes:
+      - ./assets:/app/assets
+      - ./configs:/app/configs
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./dashboard:/app/dashboard
+    entrypoint: ["python", "-m", "streamlit", "run", "dashboard/app.py"]
+
+  pipeline:
+    build: .
+    image: cryptopredicction:latest
+    environment:
+      LOG_LEVEL: "INFO"
+    volumes:
+      - ./assets:/app/assets
+      - ./configs:/app/configs
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./reports:/app/reports
+    entrypoint:
+      - python
+      - scripts/run_pipeline.py
+      - --intervals
+      - 15m
+      - --days
+      - "1"

@@ -1,0 +1,29 @@
+app:
+  domain: "crypto"
+  default_symbol: "XRP-USD"
+  default_texts:
+    - "Ripple avanza con licencias en nuevos mercados."
+    - "Analistas discuten potencial de XRP tras movimientos regulatorios."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "XRP-USD"
+  market_symbol: "XRPUSDT"
+  interval: "1h"
+  model_path: "../models/local_price_XRPUSDT_1h.joblib"
+  source: "local"
+  lookback_days: 30
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

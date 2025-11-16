@@ -1,0 +1,29 @@
+app:
+  domain: "crypto"
+  default_symbol: "BCH-USD"
+  default_texts:
+    - "Bitcoin Cash gana tracción como medio de pago en comercios."
+    - "Analistas evalúan la volatilidad de BCH frente a BTC."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "BCH-USD"
+  market_symbol: "BCHUSDT"
+  interval: "15m"
+  model_path: "../models/local_price_BCHUSDT_15m.joblib"
+  source: "local"
+  lookback_days: 30
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

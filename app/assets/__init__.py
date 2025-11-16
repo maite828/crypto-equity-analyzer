@@ -1,0 +1,14 @@
+"""Registro centralizado de activos."""
+
+from .registry import (  # noqa: F401
+    ALL_CRYPTO_SYMBOLS,
+    COINGECKO_MAP,
+    CRYPTO_ASSETS,
+    CRYPTO_RANKING_SYMBOLS,
+    CRYPTO_TICKERS,
+    DEFAULT_COIN_IDS,
+    DEFAULT_COINGECKO_IDS,
+    DEFAULT_CRYPTO_SYMBOLS,
+    SYMBOL_TO_TICKER,
+    TICKER_TO_SYMBOL,
+)

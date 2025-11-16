@@ -1,0 +1,3 @@
+REMOVE_SYMBOL?=KSMUSDT
+remove-crypto:
+	@$(DOCKER_PY) scripts/manage_assets.py remove-crypto --symbol $(REMOVE_SYMBOL)

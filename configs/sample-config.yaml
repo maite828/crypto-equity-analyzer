@@ -1,0 +1,41 @@
+app:
+  domain: "crypto"
+  default_symbol: "BTC-USD"
+  default_texts:
+    - "Bitcoin continúa su rally tras entrada institucional."
+    - "Caída del mercado cripto por regulaciones en EE.UU."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "huggingface_gru"
+  symbol: "BTC-USD"
+  market_symbol: "BTCUSDT"
+  interval: "1d"
+  model_path: "../models/price-model.joblib"
+  source: "huggingface"
+  lookback_days: 120  # usado sólo por el proveedor sklearn
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns:
+    - "return_1d"
+    - "return_7d"
+    - "volatility_7d"
+    - "fast_ma"
+    - "slow_ma"
+    - "ma_ratio"
+    - "rsi"
+  huggingface:
+    repo_id: "minhquan2310/btc-predictor-v4"
+    filename: "model.ckpt"
+    scalers_file: "preprocessor/scalers.joblib"
+    preproc_file: "preprocessor/preproc_config.joblib"
+    token_env_var: "HF_TOKEN"

@@ -1,0 +1,29 @@
+app:
+  domain: "crypto"
+  default_symbol: "BNB-USD"
+  default_texts:
+    - "BNB avanza con nuevas integraciones en la cadena BSC."
+    - "Los exchange tokens vuelven a ganar interés."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "BNB-USD"
+  market_symbol: "BNBUSDT"
+  interval: "5m"
+  model_path: "../models/local_price_BNBUSDT_5m.joblib"
+  source: "local"
+  lookback_days: 7
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

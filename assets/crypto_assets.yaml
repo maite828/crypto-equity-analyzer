@@ -1,0 +1,60 @@
+  - symbol: BCHUSDT
+    ticker: BCH
+    display: Bitcoin Cash
+    coin_id: bitcoin-cash
+    ranking_symbol: BCH-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - Bitcoin Cash gana tracción como medio de pago en comercios.
+      - Analistas evalúan la volatilidad de BCH frente a BTC.
+  - symbol: BNBUSDT
+    ticker: BNB
+    display: BNB
+    coin_id: binancecoin
+    ranking_symbol: BNB-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - BNB avanza con nuevas integraciones en la cadena BSC.
+      - Los exchange tokens vuelven a ganar interés.
+  - symbol: BTCUSDT
+    ticker: BTC
+    display: Bitcoin
+    coin_id: bitcoin
+    ranking_symbol: BTC-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - Bitcoin continúa su rally tras entrada institucional.
+      - Caída del mercado cripto por regulaciones en EE.UU.
+  - symbol: ETHUSDT
+    ticker: ETH
+    display: Ethereum
+    coin_id: ethereum
+    ranking_symbol: ETH-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - Ethereum consolida su precio tras actualización de la red.
+      - Inversores institucionales evalúan entrar en ETH.
+  - symbol: SOLUSDT
+    ticker: SOL
+    display: Solana
+    coin_id: solana
+    ranking_symbol: SOL-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - Solana se recupera tras caída general del mercado.
+      - Volumen DeFi impulsa a SOL.
+  - symbol: XRPUSDT
+    ticker: XRP
+    display: Ripple
+    coin_id: ripple
+    ranking_symbol: XRP-USD
+    enabled: true
+    ranking_enabled: true
+    default_texts:
+      - Ripple avanza con licencias en nuevos mercados.
+      - Analistas discuten potencial de XRP tras movimientos regulatorios.
