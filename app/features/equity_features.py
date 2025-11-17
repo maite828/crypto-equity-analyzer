@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -71,7 +71,7 @@ def compute_rsi(series: pd.Series, window: int) -> pd.Series:
     return 100 - (100 / (1 + rs))
 
 
-def build_equity_feature_row(config: PriceSection, feature_columns: List[str]) -> pd.DataFrame:
+def build_equity_feature_row(config: PriceSection, feature_columns: Optional[List[str]] = None) -> pd.DataFrame:
     candles = fetch_candles(config.market_symbol or config.symbol, config.interval, config.lookback_days)
     if candles.empty:
         raise RuntimeError("No se pudieron obtener velas de yfinance para el ticker indicado.")
@@ -87,7 +87,9 @@ def build_equity_feature_row(config: PriceSection, feature_columns: List[str]) -
     for key, value in corp.items():
         feats[key] = value
     latest = feats.iloc[[-1]].copy()
-    for col in feature_columns:
-        if col not in latest.columns:
-            latest[col] = 0.0
-    return latest[feature_columns]
+    if feature_columns:
+        for col in feature_columns:
+            if col not in latest.columns:
+                latest[col] = 0.0
+        return latest[feature_columns]
+    return latest

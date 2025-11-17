@@ -1,0 +1,6 @@
+Collecting lightgbm
+  Downloading lightgbm-4.6.0-py3-none-macosx_12_0_arm64.whl (1.6 MB)
+Requirement already satisfied: scipy in /Users/maite828/Library/Python/3.9/lib/python/site-packages (from lightgbm) (1.13.1)
+Requirement already satisfied: numpy>=1.17.0 in /Users/maite828/Library/Python/3.9/lib/python/site-packages (from lightgbm) (1.26.4)
+Installing collected packages: lightgbm
+Successfully installed lightgbm-4.6.0

@@ -23,6 +23,7 @@ from app.assets import (
 
 BASE_DIR = ROOT_DIR
 DEFAULT_CONFIG = ROOT_DIR / "configs" / "sample-config.yaml"
+DATASETS_DIR = ROOT_DIR / "data" / "datasets"
 CRYPTO_FEEDS = {
     "CoinDesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "CoinTelegraph": "https://cointelegraph.com/rss",
@@ -49,7 +50,7 @@ FAMILY_RANKING_SYMBOLS = {
 }
 FAMILY_INTERVALS = {
     "crypto": ["5m", "15m", "1h"],
-    "equity": ["1h"],
+    "equity": ["1h", "1d"],
 }
 LOCAL_CONFIG_MAP = {
     "crypto": {ticker: ticker.lower() for ticker in CRYPTO_TICKERS},
@@ -83,12 +84,20 @@ def fetch_real_prices(symbols):
 
 
 def run_command(args):
+    env = os.environ.copy()
+    pythonpath = env.get("PYTHONPATH", "")
+    base = str(BASE_DIR)
+    if pythonpath:
+        env["PYTHONPATH"] = f"{base}:{pythonpath}"
+    else:
+        env["PYTHONPATH"] = base
     process = subprocess.run(
         ["python3"] + args,
         cwd=BASE_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env=env,
     )
     if process.returncode != 0:
         raise RuntimeError(
@@ -97,11 +106,23 @@ def run_command(args):
     return process.stdout + process.stderr
 
 
+def latest_dataset(symbol: str, interval: str, asset_family: str) -> str:
+    pattern = DATASETS_DIR.glob(f"{symbol}_{asset_family}_{interval}_*rows.parquet")
+    files = list(pattern)
+    if not files:
+        raise RuntimeError(
+            f"No se encontró dataset para {symbol} ({interval}, {asset_family}). Ejecuta Merge/Pipeline primero."
+        )
+    latest = max(files, key=lambda p: p.stat().st_mtime)
+    return str(latest)
+
+
 def run_pipeline_cli(
     symbols,
     intervals,
     days,
     asset_family,
+    model_type,
     skip_fetch=False,
     skip_merge=False,
     skip_train=False,
@@ -120,6 +141,8 @@ def run_pipeline_cli(
         str(days),
         "--asset-family",
         asset_family,
+        "--model-type",
+        model_type,
     ]
     if skip_fetch:
         args.append("--skip-fetch")
@@ -128,6 +151,30 @@ def run_pipeline_cli(
     if skip_train:
         args.append("--skip-train")
     return run_command(args)
+
+
+def run_tuning_cli(symbols, intervals, asset_family, model_type, n_iter):
+    outputs = []
+    for symbol in symbols:
+        for interval in intervals:
+            dataset_path = latest_dataset(symbol, interval, asset_family)
+            args = [
+                "scripts/tune_model.py",
+                "--symbol",
+                symbol,
+                "--interval",
+                interval,
+                "--asset-family",
+                asset_family,
+                "--model-type",
+                model_type,
+                "--n-iter",
+                str(n_iter),
+                "--dataset",
+                dataset_path,
+            ]
+            outputs.append(run_command(args))
+    return "\n".join(outputs)
 
 
 def get_latest_ranking(symbols):
@@ -223,13 +270,17 @@ def main():
         help="Selecciona si quieres operar con cripto (Binance) o acciones (Yahoo Finance).",
     )
     available_symbols = FAMILY_SYMBOLS[asset_family]
+    family_intervals = FAMILY_INTERVALS.get(asset_family, INTERVAL_OPTIONS)
+    interval_choices = family_intervals or INTERVAL_OPTIONS
 
     with st.expander("Orquestador (equivalente a make)"):
+        max_days = 730 if asset_family == "equity" else 365
+        default_days = 730 if asset_family == "equity" else 30
         days = st.slider(
             "Historic days",
             min_value=1,
-            max_value=365,
-            value=30,
+            max_value=max_days,
+            value=min(default_days, max_days),
             help="Profundidad de backfill para fetch.",
         )
         selected_symbols = st.multiselect(
@@ -237,13 +288,27 @@ def main():
             available_symbols,
             default=available_symbols,
         )
+        default_interval_list = [interval_choices[0]] if interval_choices else [DEFAULT_INTERVAL]
         selected_intervals = st.multiselect(
             "Intervalos",
-            INTERVAL_OPTIONS,
-            default=[DEFAULT_INTERVAL],
+            interval_choices,
+            default=default_interval_list,
             help="Puedes seleccionar varios para entrenar múltiples horizontes.",
         )
-        col_fetch, col_merge, col_train, col_pipe = st.columns(4)
+        model_type = st.selectbox(
+            "Modelo",
+            ["random_forest", "xgboost", "lightgbm"],
+            help="Selecciona el estimador para la fase de entrenamiento.",
+        )
+        tune_iterations = st.slider(
+            "Iteraciones tuning (RandomizedSearch)",
+            min_value=5,
+            max_value=60,
+            value=20,
+            step=5,
+            help="Número de combinaciones a probar cuando ejecutes Tune.",
+        )
+        col_fetch, col_merge, col_train, col_pipe, col_tune = st.columns(5)
         if col_fetch.button("Fetch"):
             with st.spinner("Descargando datos públicos..."):
                 try:
@@ -252,6 +317,7 @@ def main():
                         selected_intervals,
                         days,
                         asset_family,
+                        model_type,
                         skip_merge=True,
                         skip_train=True,
                     )
@@ -266,6 +332,7 @@ def main():
                         selected_intervals,
                         days,
                         asset_family,
+                        model_type,
                         skip_fetch=True,
                         skip_train=True,
                     )
@@ -280,6 +347,7 @@ def main():
                         selected_intervals,
                         days,
                         asset_family,
+                        model_type,
                         skip_fetch=True,
                         skip_merge=True,
                     )
@@ -294,28 +362,38 @@ def main():
                         selected_intervals,
                         days,
                         asset_family,
+                        model_type,
                     )
                     st.code(output or "Pipeline completado.", language="bash")
                 except Exception as exc:
                     st.error(str(exc))
+        if col_tune.button("Tune models"):
+            with st.spinner("Buscando hiperparámetros óptimos..."):
+                try:
+                    output = run_tuning_cli(
+                        selected_symbols,
+                        selected_intervals,
+                        asset_family,
+                        model_type,
+                        tune_iterations,
+                    )
+                    st.code(output or "Tuning completado.", language="bash")
+                except Exception as exc:
+                    st.error(str(exc))
 
     st.header("Local Predictions")
-    family_intervals = FAMILY_INTERVALS.get(asset_family, INTERVAL_OPTIONS)
     interval_index = 0
-    if DEFAULT_INTERVAL in family_intervals:
-        interval_index = family_intervals.index(DEFAULT_INTERVAL)
+    if DEFAULT_INTERVAL in interval_choices:
+        interval_index = interval_choices.index(DEFAULT_INTERVAL)
     pred_interval = st.selectbox(
         "Intervalo para los modelos locales",
-        family_intervals,
-        index=interval_index,
+        interval_choices,
+        index=min(interval_index, max(len(interval_choices) - 1, 0)),
     )
     family_configs = LOCAL_CONFIG_MAP.get(asset_family, {})
     cols = st.columns(len(family_configs) or 1)
     for col, (symbol, prefix) in zip(cols, family_configs.items()):
-        if asset_family == "crypto":
-            config_path = CONFIG_DIR / f"local-model-{prefix}-{pred_interval}.yaml"
-        else:
-            config_path = CONFIG_DIR / f"local-model-{prefix}-1h.yaml"
+        config_path = CONFIG_DIR / f"local-model-{prefix}-{pred_interval}.yaml"
         if col.button(f"Predict {symbol} ({pred_interval})"):
             if not config_path.exists():
                 col.warning("Modelo no disponible. Ejecuta el pipeline primero.")
@@ -409,7 +487,7 @@ def main():
                 st.warning("Selecciona al menos una acción.")
             else:
                 try:
-                    df, summary = get_equity_ranking(equity_symbols, interval="1h")
+                    df, summary = get_equity_ranking(equity_symbols, interval=pred_interval)
                     if df.empty:
                         st.warning("No se generó ranking (¿faltan modelos locales?).")
                     else:
@@ -423,6 +501,9 @@ def main():
                                     "delta_1d_pct": "Δ (%)",
                                     "sentiment": "Sentimiento",
                                     "sentiment_confidence": "Confianza sentimiento",
+                                    "benchmark_return_1": "Retorno benchmark",
+                                    "days_to_next_earnings": "Días a earnings",
+                                    "has_upcoming_earnings": "Próximos earnings",
                                 }
                             ),
                             width="stretch",

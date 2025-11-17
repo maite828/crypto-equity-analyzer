@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
+
+FMP_API_KEY = os.environ.get("FMP_API_KEY")
+FMP_EARNINGS_URL = "https://financialmodelingprep.com/api/v3/earning_calendar"
 
 
 def fetch_equity_history(symbol: str, interval: str, days: int) -> pd.DataFrame:
@@ -100,6 +105,49 @@ def attach_benchmark_features(
     return merged
 
 
+def _fetch_fmp_earnings(symbol: str) -> Optional[Dict[str, float]]:
+    """Consulta FinancialModelingPrep en busca del próximo earnings."""
+    if not FMP_API_KEY:
+        return None
+    params = {
+        "symbol": symbol,
+        "limit": 16,
+        "apikey": FMP_API_KEY,
+    }
+    try:
+        resp = requests.get(FMP_EARNINGS_URL, params=params, timeout=15)
+        resp.raise_for_status()
+    except Exception:  # pragma: no cover - red de terceros
+        return None
+    try:
+        data = resp.json()
+    except ValueError:  # pragma: no cover
+        return None
+    if not isinstance(data, list):
+        return None
+    now = datetime.now(timezone.utc).date()
+    next_date: Optional[datetime] = None
+    for entry in data:
+        date_str = entry.get("date")
+        if not date_str:
+            continue
+        try:
+            event_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if event_date < now:
+            continue
+        if next_date is None or event_date < next_date:
+            next_date = event_date
+    if not next_date:
+        return None
+    delta_days = (next_date - now).days
+    return {
+        "days_to_next_earnings": float(delta_days),
+        "has_upcoming_earnings": 1.0 if delta_days >= 0 else 0.0,
+    }
+
+
 def fetch_corporate_features(symbol: str) -> Dict[str, float]:
     base_symbol = symbol.replace("-USD", "")
     features: Dict[str, float] = {
@@ -127,6 +175,11 @@ def fetch_corporate_features(symbol: str) -> Dict[str, float]:
                     features["has_upcoming_earnings"] = 1.0 if delta >= 0 else 0.0
     except Exception:  # pragma: no cover
         pass
+    # Fallback a FinancialModelingPrep si no hay earnings desde Yahoo
+    if features["days_to_next_earnings"] == 0.0:
+        fallback = _fetch_fmp_earnings(base_symbol)
+        if fallback:
+            features.update(fallback)
     # Dividend info
     try:
         dividends = ticker.dividends
@@ -141,3 +194,33 @@ def fetch_corporate_features(symbol: str) -> Dict[str, float]:
     except Exception:  # pragma: no cover
         pass
     return features
+
+
+def fetch_macro_series(symbol: str, interval: str, days: int) -> pd.DataFrame:
+    period = f"{max(days, 5)}d"
+    df = yf.download(
+        symbol,
+        period=period,
+        interval=interval,
+        progress=False,
+        auto_adjust=False,
+        group_by="ticker",
+    )
+    df = df.reset_index()
+    if isinstance(df.columns, pd.MultiIndex):
+        flat = []
+        for col in df.columns:
+            if isinstance(col, tuple):
+                flat.append(next((str(level) for level in col if level), ""))
+            else:
+                flat.append(str(col))
+        df.columns = flat
+    time_col = "Datetime" if "Datetime" in df.columns else "Date"
+    df["close_time"] = pd.to_datetime(df[time_col], utc=True)
+    rename_map = {
+        "Close": f"macro_{symbol}_close",
+        "Adj Close": f"macro_{symbol}_adj_close",
+        "Volume": f"macro_{symbol}_volume",
+    }
+    cols = ["close_time"] + [col for col in rename_map if col in df.columns]
+    return df[cols].rename(columns=rename_map)

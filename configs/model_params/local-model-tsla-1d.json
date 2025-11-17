@@ -1,0 +1,11 @@
+{
+  "model_type": "lightgbm",
+  "best_params": {
+    "subsample": 0.6,
+    "n_estimators": 561,
+    "max_depth": 10,
+    "learning_rate": 0.12999999999999998,
+    "colsample_bytree": 0.5
+  },
+  "best_score": -0.3835916673144679
+}

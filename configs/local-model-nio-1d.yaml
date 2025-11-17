@@ -1,0 +1,31 @@
+app:
+  domain: "equity"
+  default_symbol: "NIO"
+  default_texts:
+    - "NIO anuncia entregas mensuales y novedades de baterías."
+    - "Analistas revisan la competencia china en vehículos eléctricos."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "ProsusAI/finbert"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "NIO"
+  market_symbol: "NIO"
+  interval: "1d"
+  asset_family: "equity"
+  model_path: "../models/local_price_NIO_equity_1d.joblib"
+  source: "local"
+  benchmark_symbol: "^GSPC"
+  lookback_days: 365
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

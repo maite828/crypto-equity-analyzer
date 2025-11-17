@@ -66,7 +66,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model-type",
-        choices=["random_forest", "xgboost"],
+        choices=["random_forest", "xgboost", "lightgbm"],
         default="random_forest",
         help="Tipo de modelo para la fase de entrenamiento.",
     )
@@ -80,6 +80,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=365,
         help="Histórico en días para el benchmark (equity).",
+    )
+    parser.add_argument(
+        "--macro-symbols",
+        nargs="*",
+        default=["^GSPC", "^IXIC"],
+        help="Símbolos macro/sectoriales adicionales para equity.",
     )
     parser.add_argument("--skip-fetch", action="store_true", help="Omitir la fase de descarga.")
     parser.add_argument("--skip-merge", action="store_true", help="Omitir la fase de merge.")
@@ -167,7 +173,14 @@ def main() -> None:
                     args.asset_family,
                 ]
                 if args.asset_family == "equity":
-                    cmd += ["--benchmark-symbol", args.benchmark_symbol, "--benchmark-days", str(args.benchmark_days)]
+                    cmd += [
+                        "--benchmark-symbol",
+                        args.benchmark_symbol,
+                        "--benchmark-days",
+                        str(args.benchmark_days),
+                        "--macro-symbols",
+                        *args.macro_symbols,
+                    ]
                 run_cmd(cmd)
     else:
         logging.info("Saltando fase merge.")

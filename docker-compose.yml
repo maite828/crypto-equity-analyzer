@@ -4,6 +4,7 @@ services:
     image: cryptopredicction:latest
     environment:
       LOG_LEVEL: "INFO"
+      FMP_API_KEY: "rpMcNVklPvOw4jr0098cjnStaeJMUGwc"
       # TEXTS: "Un titular||Otro titular"
       # SYMBOL: "ETH-USD"
       # HF_TOKEN: "hf_xxx" # Sólo si el repo de Hugging Face es privado
@@ -14,6 +15,7 @@ services:
       - ./data:/app/data
       - ./outputs:/app/outputs
       - ./dashboard:/app/dashboard
+      - ./scripts:/app/scripts
     entrypoint: ["python", "-m", "streamlit", "run", "dashboard/app.py"]
 
   pipeline:
@@ -21,6 +23,7 @@ services:
     image: cryptopredicction:latest
     environment:
       LOG_LEVEL: "INFO"
+      FMP_API_KEY: "rpMcNVklPvOw4jr0098cjnStaeJMUGwc"
     volumes:
       - ./assets:/app/assets
       - ./configs:/app/configs
@@ -28,6 +31,7 @@ services:
       - ./data:/app/data
       - ./outputs:/app/outputs
       - ./reports:/app/reports
+      - ./scripts:/app/scripts
     entrypoint:
       - python
       - scripts/run_pipeline.py

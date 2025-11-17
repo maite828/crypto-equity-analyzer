@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
 from app.config import load_config
 from app.pricing import PriceService
 from app.sentiment import SentimentService
+from app.features.equity_features import build_equity_feature_row
 
 DEFAULT_EQUITY_SYMBOLS = ["TSLA", "NIO", "NVDA", "AMZN", "GOOGL"]
 
@@ -94,6 +95,7 @@ def build_record(config_path: Path, headlines_limit: int) -> Optional[dict]:
                 sentiment_label = sentiment_df["sentiment"].mode().iloc[0]
                 sentiment_confidence = float(sentiment_df["confidence"].mean())
 
+    context = build_equity_feature_row(settings.price, None).iloc[0]
     return {
         "asset": settings.price.symbol,
         "current_price": current_price,
@@ -102,6 +104,9 @@ def build_record(config_path: Path, headlines_limit: int) -> Optional[dict]:
         "delta_1d_pct": delta_pct,
         "sentiment": sentiment_label,
         "sentiment_confidence": sentiment_confidence,
+        "benchmark_return_1": context.get("benchmark_return_1"),
+        "days_to_next_earnings": context.get("days_to_next_earnings"),
+        "has_upcoming_earnings": context.get("has_upcoming_earnings"),
     }
 
 

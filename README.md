@@ -38,7 +38,8 @@ data/, models/, outputs/, reports/
 Variables relevantes:
 
 - `SYMBOLS`, `INTERVAL`, `DAYS`, `ASSET_FAMILY` (crypto | equity).
-- `MODEL_TYPE` (opcional): `random_forest` (default) o `xgboost` para usar el nuevo estimador en `scripts/train_price_model.py`.
+- `MODEL_TYPE` (opcional): `random_forest` (default), `xgboost` o `lightgbm` para usar el estimador deseado.
+- En el dashboard puedes elegir el modelo desde el dropdown “Modelo” antes de pulsar Fetch/Merge/Train/Pipeline; aplica los mismos valores (`random_forest` o `xgboost`).
 - Los modelos locales se guardan como `models/local_price_{symbol}_{family}_{interval}.joblib`.
 - Los datasets enriquecidos terminan en `data/datasets/{symbol}_{family}_{interval}_{rows}rows.parquet`.
 
@@ -56,6 +57,7 @@ Variables relevantes:
 - `scripts/batch_analysis.py` (usado desde el dashboard) imprime la tabla de ranking e interpretación automática.
 - `scripts/batch_equity_ranking.py` genera el ranking multiactivo para acciones y calcula sentimiento con FinBERT (el dashboard lo llama cuando eliges la familia equity).
 - `scripts/train_price_model.py` admite `--n-estimators`, `--max-depth` y `--walk-splits` para ajustar modelos y obtener métricas walk-forward (especialmente útil en equities).
+- `scripts/tune_model.py` ejecuta RandomizedSearchCV sobre RF/XGBoost para un dataset concreto y guarda los mejores parámetros en `configs/model_params/`.
 - `pytest`: ejecuta `python -m pytest` para validar los módulos (tests enfocados en features y ranking de equities).
 
 > Si prefieres ejecutar sin Docker, instala `pip install -r requirements.txt` y usa los scripts directamente. Aun así, las instrucciones oficiales están pensadas para correr en contenedores.

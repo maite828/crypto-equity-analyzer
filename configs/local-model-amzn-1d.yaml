@@ -1,0 +1,31 @@
+app:
+  domain: "equity"
+  default_symbol: "AMZN"
+  default_texts:
+    - "Amazon impulsa AWS y consumo en Prime."
+    - "El mercado vigila los márgenes del e-commerce global."
+
+sentiment:
+  enabled: true
+  provider: "huggingface"
+  task: "sentiment-analysis"
+  model_id: "ProsusAI/finbert"
+  device: -1
+  batch_size: 16
+
+price:
+  enabled: true
+  provider: "local_sklearn"
+  symbol: "AMZN"
+  market_symbol: "AMZN"
+  interval: "1d"
+  asset_family: "equity"
+  model_path: "../models/local_price_AMZN_equity_1d.joblib"
+  source: "local"
+  benchmark_symbol: "^GSPC"
+  lookback_days: 365
+  fast_ma: 7
+  slow_ma: 21
+  rsi_window: 14
+  feature_columns: []
+  huggingface: null

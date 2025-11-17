@@ -7,7 +7,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import joblib
 import numpy as np
@@ -16,9 +16,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit, train_test_split
 from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
 
 MODELS_DIR = Path("models")
 REPORTS_DIR = Path("reports")
+PARAMS_DIR = Path("configs/model_params")
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,7 +50,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model-type",
-        choices=["random_forest", "xgboost"],
+        choices=["random_forest", "xgboost", "lightgbm"],
         default="random_forest",
         help="Tipo de modelo a entrenar.",
     )
@@ -95,6 +97,12 @@ def parse_args() -> argparse.Namespace:
         help="Learning rate para XGBoost (por defecto 0.05).",
     )
     parser.add_argument(
+        "--min-samples-leaf",
+        type=int,
+        default=None,
+        help="Min samples leaf para RandomForest.",
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         help="Nivel de logging.",
@@ -108,6 +116,15 @@ def build_features(data: pd.DataFrame, horizon: int) -> pd.DataFrame:
     df["target_return"] = (df["target_price"] - df["close"]) / df["close"]
     df = df.dropna(subset=["target_price"])
     return df
+
+
+def load_saved_params(symbol: str, interval: str, model_type: str) -> Optional[dict]:
+    path = PARAMS_DIR / f"local-model-{symbol.lower()}-{interval}.json"
+    if path.exists():
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.get("model_type") == model_type:
+            return data.get("best_params")
+    return None
 
 
 def walk_forward_metrics(
@@ -143,9 +160,21 @@ def create_model(args: argparse.Namespace, default_estimators: int, default_dept
             tree_method="hist",
             random_state=args.random_state,
         )
+    if args.model_type == "lightgbm":
+        return LGBMRegressor(
+            n_estimators=args.n_estimators or default_estimators,
+            max_depth=args.max_depth or default_depth,
+            learning_rate=args.learning_rate or 0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=args.random_state,
+        )
     return RandomForestRegressor(
         n_estimators=args.n_estimators or default_estimators,
         max_depth=args.max_depth or default_depth,
+        min_samples_leaf=(
+            args.min_samples_leaf if args.min_samples_leaf is not None else 1
+        ),
         random_state=args.random_state,
         n_jobs=-1,
     )
@@ -173,6 +202,16 @@ def train_model(args: argparse.Namespace) -> Dict[str, float]:
 
     default_estimators = 400 if args.asset_family == "equity" else 300
     default_depth = 10 if args.asset_family == "equity" else 8
+    saved = load_saved_params(args.symbol, args.interval, args.model_type)
+    if saved:
+        if args.model_type == "xgboost":
+            args.n_estimators = args.n_estimators or saved.get("n_estimators")
+            args.max_depth = args.max_depth or saved.get("max_depth")
+            args.learning_rate = args.learning_rate or saved.get("learning_rate")
+        else:
+            args.n_estimators = args.n_estimators or saved.get("n_estimators")
+            args.max_depth = args.max_depth or saved.get("max_depth")
+            args.min_samples_leaf = args.min_samples_leaf or saved.get("min_samples_leaf")
     walk_mae, walk_rmse = walk_forward_metrics(X, y, args, default_estimators, default_depth)
 
     model = create_model(args, default_estimators, default_depth)

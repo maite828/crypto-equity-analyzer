@@ -6,9 +6,17 @@ DEFAULT_SYMBOLS := BTCUSDT ETHUSDT SOLUSDT BNBUSDT XRPUSDT BCHUSDT
 DEFAULT_COINS := bitcoin ethereum solana binancecoin ripple bitcoin-cash
 SYMBOLS := $(shell python3 scripts/manage_assets.py list-symbols 2>/dev/null || echo $(DEFAULT_SYMBOLS))
 COIN_IDS := $(shell python3 scripts/manage_assets.py list-coingecko 2>/dev/null || echo $(DEFAULT_COINS))
-INTERVAL := 15m
-DAYS := 365
-ASSET_FAMILY := crypto
+ASSET_FAMILY ?= crypto
+ifeq ($(ASSET_FAMILY),equity)
+  DEFAULT_INTERVAL := 1h
+  DEFAULT_DAYS := 730
+else
+  DEFAULT_INTERVAL := 15m
+  DEFAULT_DAYS := 365
+endif
+INTERVAL ?= $(DEFAULT_INTERVAL)
+DAYS ?= $(DEFAULT_DAYS)
+MODEL_TYPE ?= random_forest
 NEW_SYMBOL ?=
 NEW_TICKER ?=
 NEW_DISPLAY ?=
@@ -24,19 +32,19 @@ DOCKER_PY := docker compose run --rm --entrypoint python analyzer
 
 pipeline:
 	$(DOCKER_PY) scripts/run_pipeline.py --symbols $(SYMBOLS) --coin-ids $(COIN_IDS) \
-	  --intervals $(INTERVAL) --days $(DAYS) --asset-family $(ASSET_FAMILY)
+	  --intervals $(INTERVAL) --days $(DAYS) --asset-family $(ASSET_FAMILY) --model-type $(MODEL_TYPE)
 
 fetch:
 	$(DOCKER_PY) scripts/run_pipeline.py --symbols $(SYMBOLS) --coin-ids $(COIN_IDS) \
-	  --intervals $(INTERVAL) --days $(DAYS) --skip-merge --skip-train --asset-family $(ASSET_FAMILY)
+	  --intervals $(INTERVAL) --days $(DAYS) --skip-merge --skip-train --asset-family $(ASSET_FAMILY) --model-type $(MODEL_TYPE)
 
 merge:
 	$(DOCKER_PY) scripts/run_pipeline.py --symbols $(SYMBOLS) --coin-ids $(COIN_IDS) \
-	  --intervals $(INTERVAL) --skip-fetch --skip-train --asset-family $(ASSET_FAMILY)
+	  --intervals $(INTERVAL) --skip-fetch --skip-train --asset-family $(ASSET_FAMILY) --model-type $(MODEL_TYPE)
 
 train:
 	$(DOCKER_PY) scripts/run_pipeline.py --symbols $(SYMBOLS) --coin-ids $(COIN_IDS) \
-	  --intervals $(INTERVAL) --skip-fetch --skip-merge --asset-family $(ASSET_FAMILY)
+	  --intervals $(INTERVAL) --skip-fetch --skip-merge --asset-family $(ASSET_FAMILY) --model-type $(MODEL_TYPE)
 
 btc-local:
 	$(DOCKER_PY) -m app.cli --config configs/local-model-btc-$(INTERVAL).yaml --skip-sentiment

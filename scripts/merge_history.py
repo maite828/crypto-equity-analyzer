@@ -15,8 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.data_sources.yfinance_equities import attach_benchmark_features, compute_obv, compute_vwap, fetch_equity_history  # noqa: E402
-from app.data_sources.yfinance_equities import fetch_corporate_features  # noqa: E402
+from app.data_sources.yfinance_equities import (
+    attach_benchmark_features,
+    compute_obv,
+    compute_vwap,
+    fetch_equity_history,
+    fetch_corporate_features,
+    fetch_macro_series,
+)  # noqa: E402
 from app.assets import COINGECKO_MAP  # noqa: E402
 DATA_DIR = Path("data")
 MARKET_DIR = DATA_DIR / "market"
@@ -61,6 +67,12 @@ def parse_args() -> argparse.Namespace:
         help="Días de histórico para el benchmark (equity).",
     )
     parser.add_argument(
+        "--macro-symbols",
+        nargs="*",
+        default=["^GSPC", "^IXIC"],
+        help="Símbolos macro/sectoriales adicionales para equity.",
+    )
+    parser.add_argument(
         "--output",
         default=None,
         help="Ruta personalizada para guardar el dataset. Por defecto data/datasets/{symbol}_{interval}.parquet",
@@ -94,6 +106,7 @@ def load_market(
     asset_family: str,
     benchmark_symbol: Optional[str] = None,
     benchmark_days: int = 365,
+    macro_symbols: Optional[list[str]] = None,
 ) -> pd.DataFrame:
     prefix = "binance" if asset_family == "crypto" else "equity"
     base_dir = MARKET_DIR if asset_family == "crypto" else EQUITY_MARKET_DIR
@@ -118,6 +131,7 @@ def load_market(
     market["close_time"] = market["close_time"].dt.round("1s")
     if asset_family == "equity":
         market = enhance_equity_features(market, interval, benchmark_symbol or "^GSPC", benchmark_days)
+        market = attach_macro_series(market, macro_symbols or [], interval, benchmark_days)
         corp = fetch_corporate_features(symbol)
         for key, value in corp.items():
             market[key] = value
@@ -154,6 +168,40 @@ def enhance_equity_features(
     df["benchmark_close"] = df.get("benchmark_close", 0.0).fillna(0.0)
     df["benchmark_return_1"] = df.get("benchmark_return_1", 0.0).fillna(0.0)
     df["close_to_benchmark"] = df.get("close_to_benchmark", 1.0).fillna(1.0)
+    return df
+
+
+def attach_macro_series(
+    df: pd.DataFrame, symbols: list[str], interval: str, lookback_days: int
+) -> pd.DataFrame:
+    for symbol in symbols or []:
+        try:
+            series = fetch_macro_series(symbol, interval, lookback_days)
+        except Exception as exc:  # pragma: no cover
+            logging.warning("No se pudo descargar macro %s: %s", symbol, exc)
+            continue
+        df = pd.merge_asof(
+            df.sort_values("close_time"),
+            series.sort_values("close_time"),
+            on="close_time",
+            direction="nearest",
+        )
+        close_col = f"macro_{symbol}_close"
+        if close_col in df.columns:
+            macro_close = df[close_col].ffill().bfill().fillna(0.0)
+            macro_returns = macro_close.pct_change().fillna(0.0)
+            df[close_col] = macro_close
+            df[f"macro_{symbol}_return_1"] = macro_returns
+            df[f"macro_{symbol}_return_5"] = macro_close.pct_change(5).fillna(0.0)
+            df[f"macro_{symbol}_volatility_20"] = macro_returns.rolling(20).std().fillna(0.0)
+            df[f"macro_{symbol}_corr_20"] = (
+                df["close"].rolling(20).corr(macro_close).fillna(0.0)
+            )
+            df[f"macro_{symbol}_spread"] = df["close"] - macro_close
+            df[f"macro_{symbol}_beta_20"] = (
+                df["return_1"].rolling(20).cov(macro_returns)
+                / (macro_returns.rolling(20).var() + 1e-9)
+            ).fillna(0.0)
     return df
 
 
@@ -223,6 +271,7 @@ def merge_all(args: argparse.Namespace) -> pd.DataFrame:
         args.asset_family,
         benchmark_symbol=args.benchmark_symbol,
         benchmark_days=args.benchmark_days,
+        macro_symbols=args.macro_symbols,
     )
 
     if args.asset_family == "crypto" and args.include_order_book:
